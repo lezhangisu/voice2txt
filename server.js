@@ -844,11 +844,11 @@ const server = http.createServer(async (req, res) => {
 
   if (pathname === "/" || pathname === "") {
     if (authed) return serveFile(res, "index.html");
-    return redirect(res, "/login.html");
+    return redirect(res, "login.html");
   }
 
   if (pathname === "/login.html") {
-    if (authed) return redirect(res, "/");
+    if (authed) return redirect(res, "./");
     return serveFile(res, "login.html");
   }
 

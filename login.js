@@ -22,13 +22,13 @@ form.addEventListener("submit", async (event) => {
   if (!key) return;
   keyBtn.disabled = true;
   try {
-    const resp = await fetch("/api/login", {
+    const resp = await fetch("./api/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ key }),
     });
     if (resp.ok) {
-      location.href = "/";
+      location.href = "./";
       return;
     }
     if (resp.status === 429) {
@@ -44,10 +44,10 @@ form.addEventListener("submit", async (event) => {
 });
 
 // 已登录用户无需重复输入，直接进入应用
-fetch("/api/session")
+fetch("./api/session")
   .then((r) => r.json())
   .then((d) => {
-    if (d.ok) location.replace("/");
+    if (d.ok) location.replace("./");
   })
   .catch(() => {
     /* 服务不可达时停留在登录页 */

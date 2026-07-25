@@ -121,7 +121,7 @@ class IFlytekASR {
   async openSession() {
     let url, appId;
     try {
-      const resp = await fetch("/api/iflytek-sign");
+      const resp = await fetch("./api/iflytek-sign");
       if (resp.status === 401) {
         this.fatal("访问密钥无效或已过期，请重新登录。", true);
         return;

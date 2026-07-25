@@ -157,7 +157,7 @@ class GroqASR {
       const wav = pcm16ToWav(pcm, GROQ_RT_RATE);
 
       const resp = await fetch(
-        `/api/transcribe-chunk?language=${encodeURIComponent(this.language)}`,
+        `./api/transcribe-chunk?language=${encodeURIComponent(this.language)}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/octet-stream" },

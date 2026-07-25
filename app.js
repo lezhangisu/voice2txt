@@ -358,7 +358,7 @@ async function startRecording() {
 // 依据 /api/asr-status 决定实时引擎：优先 config 指定项，凭据缺失时回退
 async function getRealtimeEngine() {
   try {
-    const resp = await fetch("/api/asr-status");
+    const resp = await fetch("./api/asr-status");
     if (!resp.ok) return null;
     const s = await resp.json();
     const want = (s.realtimeEngine || "iflytek").toLowerCase();
@@ -388,7 +388,7 @@ async function startGroqSession() {
       onFatal: (msg, authExpired) => {
         setRecStatus(msg, "error");
         stopRecording();
-        if (authExpired) location.href = "/login.html";
+        if (authExpired) location.href = "./login.html";
       },
     },
     "zh"
@@ -456,7 +456,7 @@ async function startIFlytekSession() {
     onFatal: (msg, authExpired) => {
       setRecStatus(msg, "error");
       stopRecording();
-      if (authExpired) location.href = "/login.html";
+      if (authExpired) location.href = "./login.html";
     },
   });
   try {
@@ -721,7 +721,7 @@ async function callLLM(kind, text) {
   const timeout = setTimeout(() => controller.abort(), 90000);
   let resp;
   try {
-    resp = await fetch("/api/llm", {
+    resp = await fetch("./api/llm", {
       method: "POST",
       signal: controller.signal,
       headers: { "Content-Type": "application/json" },
@@ -788,7 +788,7 @@ async function runLLM(kind) {
     setRecStatus(`${label}失败：${err.message}`, "error");
     dbg(`LLM ${kind} 失败：${err.message}`);
     if (err.rateLimited) alert(err.message); // 限速弹窗提示用户休息
-    if (err.authExpired) location.href = "/login.html";
+    if (err.authExpired) location.href = "./login.html";
   } finally {
     llmBusy = false;
     btn.disabled = false;
@@ -847,7 +847,7 @@ async function transcribeAudioFile() {
       `文件转写：${file.name}（${(file.size / 1024 / 1024).toFixed(1)}MB，${duration}s，${language}）`
     );
     const uploadResp = await fetch(
-      `/api/transcribe?fileName=${encodeURIComponent(file.name)}&duration=${duration}&language=${language}`,
+      `./api/transcribe?fileName=${encodeURIComponent(file.name)}&duration=${duration}&language=${language}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/octet-stream" },
@@ -855,7 +855,7 @@ async function transcribeAudioFile() {
       }
     );
     if (uploadResp.status === 401) {
-      location.href = "/login.html";
+      location.href = "./login.html";
       return;
     }
     const uploadData = await uploadResp.json().catch(() => ({}));
@@ -882,10 +882,10 @@ async function transcribeAudioFile() {
     for (;;) {
       await new Promise((r) => setTimeout(r, 3000));
       const resultResp = await fetch(
-        `/api/transcribe-result?orderId=${encodeURIComponent(orderId)}`
+        `./api/transcribe-result?orderId=${encodeURIComponent(orderId)}`
       );
       if (resultResp.status === 401) {
-        location.href = "/login.html";
+        location.href = "./login.html";
         return;
       }
       const data = await resultResp.json().catch(() => ({}));
@@ -924,7 +924,7 @@ async function transcribeAudioFile() {
 
 async function checkAuth() {
   try {
-    const resp = await fetch("/api/session");
+    const resp = await fetch("./api/session");
     const data = await resp.json();
     if (data.ok) {
       els.appMain.hidden = false;
@@ -937,7 +937,7 @@ async function checkAuth() {
   } catch (_) {
     /* 服务不可达也按未登录处理 */
   }
-  location.href = "/login.html";
+  location.href = "./login.html";
 }
 
 function init() {
