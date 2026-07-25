@@ -22,7 +22,7 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 
-const PORT = Number(process.env.PORT) || 8000;
+const PORT = Number(process.env.PORT) || 4000;
 const HOST = process.env.HOST || "127.0.0.1";
 const ROOT = __dirname;
 const CONFIG_PATH = path.join(ROOT, "config.json");
