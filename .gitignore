@@ -1,0 +1,6 @@
+# 包含 API Key / 访问密钥，勿提交
+config.json
+keys.config.json
+
+# kimi-code 项目本地配置（含机器相关路径，官方建议勿提交）
+.kimi-code/local.toml

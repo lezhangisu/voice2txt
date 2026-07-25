@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<!--
+  Voice2Txt — 登录页（访问密钥校验）
+  Copyright (c) 2026 Le Zhang
+  Licensed under the MIT License.
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Voice2Txt — 登录</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="lang-switch">
+    <span class="lang-label">中</span>
+    <label class="switch">
+      <input type="checkbox" class="lang-toggle-input" id="lang-toggle" />
+      <span class="slider"></span>
+    </label>
+    <span class="lang-label">EN</span>
+  </div>
+
+  <div class="login-gate">
+    <form id="login-form">
+      <h1>Voice2Txt</h1>
+      <p class="tip" data-i18n="login-tip">请输入访问密钥</p>
+      <input id="key-input" type="password" autocomplete="off" data-i18n="key-input-placeholder" data-i18n-placeholder placeholder="访问密钥" />
+      <button id="key-btn" type="submit" data-i18n="btn-enter">进入</button>
+      <p id="key-error" class="key-error" hidden>密钥无效，请重试</p>
+    </form>
+  </div>
+
+  <script src="i18n.js"></script>
+  <script src="login.js"></script>
+</body>
+</html>

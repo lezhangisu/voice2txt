@@ -1,0 +1,28 @@
+{
+  "_说明": [
+    "【本文件是 Voice2Txt 的统一配置范本】复制为 config.json 后填入真实凭据：cp config.example.json config.json",
+    "所有配置每次请求实时读取，改完保存即生效，无需重启 server",
+    "【文件转写引擎】transcribeEngine：\"iflytek\" = 讯飞录音文件转写（支持大文件 500MB/5小时）；\"groq\" = Groq（更快，限 25MB）",
+    "【麦克风实时识别引擎】realtimeEngine：\"iflytek\" = 讯飞听写流式版（真流式，逐字出字，推荐）；\"groq\" = Groq 静音切块批量识别（伪流式，停顿后按句出字）",
+    "【AI 整理/归纳引擎】llmEngine：\"deepseek\" = DeepSeek 官方 API（按量计费）；\"groq\" = Groq 免费模型（与文件转写共用 groqApiKey）",
+    "【appId / apiKey / apiSecret】讯飞「语音听写（流式版）」服务页，用于麦克风实时识别",
+    "【lfasrSecret】讯飞「录音文件转写」服务页的 SecretKey，用于文件转写（transcribeEngine 为 iflytek 时）",
+    "【groqApiKey】console.groq.com 创建；文件转写（groq 引擎）与 AI 整理/归纳（groq 引擎）共用",
+    "【groqModel】文件转写模型：whisper-large-v3 = 准确率最高；whisper-large-v3-turbo = 更快更便宜",
+    "【groqLlmModel】AI 整理/归纳的 Groq 模型（llmEngine 为 groq 时），默认 qwen/qwen3.6-27b",
+    "【deepseekApiKey】platform.deepseek.com 创建（llmEngine 为 deepseek 时）；deepseekModel 默认 deepseek-v4-flash，可改 deepseek-v4-pro"
+  ],
+  "transcribeEngine": "iflytek",
+  "llmEngine": "deepseek",
+  "realtimeEngine": "iflytek",
+  "appId": "",
+  "apiKey": "",
+  "apiSecret": "",
+  "lfasrSecret": "",
+  "groqApiKey": "",
+  "groqModel": "whisper-large-v3",
+  "groqLlmModel": "qwen/qwen3.6-27b",
+  "deepseekApiKey": "",
+  "deepseekBaseUrl": "https://api.deepseek.com",
+  "deepseekModel": "deepseek-v4-flash"
+}

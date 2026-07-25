@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<!--
+  Voice2Txt — 主页面（语音识别与文本整理界面）
+  Copyright (c) 2026 Le Zhang
+  Licensed under the MIT License.
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Voice2Txt — 实时语音转文字</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="lang-switch">
+    <span class="lang-label">中</span>
+    <label class="switch">
+      <input type="checkbox" class="lang-toggle-input" id="lang-toggle" />
+      <span class="slider"></span>
+    </label>
+    <span class="lang-label">EN</span>
+  </div>
+
+  <main class="container" id="app-main" hidden>
+    <h1>Voice2Txt</h1>
+
+    <div id="support-warning" class="warning" hidden>
+      当前浏览器不支持语音识别。<br />
+      请使用 Chrome / Edge / Safari 最新版本，并通过 HTTPS 或 localhost 访问本页面。
+    </div>
+
+    <div class="controls">
+      <label for="lang-select" data-i18n="label-language">识别语言</label>
+      <select id="lang-select">
+        <option value="zh-CN" selected data-i18n="lang-zh-cn">中文（普通话）</option>
+        <option value="en-US" data-i18n="lang-en">English</option>
+        <option value="zh-TW" data-i18n="lang-zh-tw">中文（繁體）</option>
+      </select>
+
+      <button id="start-btn" class="btn btn-start" type="button" data-i18n="btn-start">开始识别</button>
+      <button id="stop-btn" class="btn btn-stop" type="button" disabled data-i18n="btn-stop">停止</button>
+      <button id="clear-btn" class="btn btn-clear" type="button" data-i18n="btn-clear">清空</button>
+    </div>
+
+    <div class="status-row">
+      <span id="mic-status" class="status-badge">麦克风：未请求权限</span>
+      <span id="rec-status" class="status-badge">状态：空闲</span>
+    </div>
+
+    <div class="file-row">
+      <label for="audio-file" data-i18n="label-file">音频文件转写</label>
+      <input type="file" id="audio-file" accept="audio/*,.mp3,.wav,.m4a,.aac,.flac,.ogg" />
+      <button id="transcribe-btn" class="btn btn-organize" type="button" data-i18n="btn-transcribe">上传并转写</button>
+      <span id="transcribe-status" class="status-badge" data-i18n="transcribe-status-init">未选择文件</span>
+    </div>
+
+    <div class="panels">
+      <section class="panel">
+        <h2 data-i18n="panel-live">实时识别</h2>
+        <div class="transcript-panel">
+          <div id="transcript" class="transcript" aria-live="polite">
+            <p class="placeholder" data-i18n="transcript-placeholder">点击「开始识别」，授权麦克风后说话，文字将实时显示在这里……</p>
+          </div>
+          <div id="interim" class="interim"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2 data-i18n="panel-organized">整理后的文本</h2>
+        <div class="convert-row">
+          <button id="convert-btn" class="btn btn-clear" type="button" disabled>繁简转换</button>
+        </div>
+        <textarea id="organized" class="organized" data-i18n="organized-placeholder" data-i18n-placeholder placeholder="录音结束后，点击下方「整理为连续文本」，可在此编辑后保存。"></textarea>
+        <div class="organize-actions">
+          <button id="organize-btn" class="btn btn-organize" type="button" data-i18n="btn-organize">整理为连续文本</button>
+          <button id="llm-organize-btn" class="btn btn-llm" type="button" data-i18n="btn-llm-organize">AI 整理分段</button>
+          <button id="llm-summarize-btn" class="btn btn-llm" type="button" data-i18n="btn-llm-summarize">AI 归纳摘要</button>
+          <button id="undo-btn" class="btn btn-clear" type="button" disabled data-i18n="btn-undo">回到上一步</button>
+        </div>
+        <div class="save-actions">
+          <select id="save-format">
+            <option value="txt" selected data-i18n="fmt-txt">TXT 纯文本</option>
+            <option value="md" data-i18n="fmt-md">Markdown</option>
+            <option value="doc" data-i18n="fmt-doc">Word (.doc)</option>
+          </select>
+          <button id="save-btn" class="btn btn-save" type="button" data-i18n="btn-save">保存文本</button>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="i18n.js"></script>
+  <script src="zh-convert-data.js"></script>
+  <script src="zh-convert.js"></script>
+  <script src="iflytek-asr.js"></script>
+  <script src="groq-asr.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

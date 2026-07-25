@@ -1,0 +1,399 @@
+/*
+ * Voice2Txt — 全局样式
+ * Copyright (c) 2026 Le Zhang
+ * Licensed under the MIT License. See LICENSE file for details.
+ */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: #0f172a;
+  color: #e2e8f0;
+  display: flex;
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+
+.container {
+  width: 100%;
+  max-width: 1080px;
+}
+
+h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.8rem;
+}
+
+h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.subtitle {
+  margin: 0 0 1.5rem;
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+.warning {
+  background: #7f1d1d;
+  border: 1px solid #ef4444;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.controls label {
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+.debug-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+select {
+  background: #1e293b;
+  color: #e2e8f0;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.95rem;
+}
+
+.btn {
+  border: none;
+  border-radius: 6px;
+  padding: 0.55rem 1.2rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.05s;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-start {
+  background: #16a34a;
+  color: #fff;
+}
+
+.btn-stop {
+  background: #dc2626;
+  color: #fff;
+}
+
+.btn-clear {
+  background: #334155;
+  color: #e2e8f0;
+}
+
+.btn-organize {
+  background: #2563eb;
+  color: #fff;
+}
+
+.btn-save {
+  background: #7c3aed;
+  color: #fff;
+}
+
+.status-row {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.status-badge {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 999px;
+  padding: 0.3rem 0.9rem;
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.status-badge.active {
+  color: #4ade80;
+  border-color: #4ade80;
+}
+
+.status-badge.error {
+  color: #f87171;
+  border-color: #f87171;
+}
+
+.panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+@media (max-width: 820px) {
+  .panels {
+    grid-template-columns: 1fr;
+  }
+}
+
+.panel {
+  min-width: 0;
+}
+
+.transcript-panel {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  height: 320px;
+  overflow-y: auto;
+}
+
+.transcript p {
+  margin: 0 0 0.6rem;
+  line-height: 1.7;
+}
+
+.transcript .placeholder {
+  color: #64748b;
+}
+
+.interim {
+  color: #94a3b8;
+  font-style: italic;
+  line-height: 1.7;
+  min-height: 1.7em;
+}
+
+.organized {
+  width: 100%;
+  height: 320px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  color: #e2e8f0;
+  font-family: inherit;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  resize: vertical;
+}
+
+.organized::placeholder {
+  color: #64748b;
+}
+
+.organize-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+code {
+  background: #334155;
+  border-radius: 4px;
+  padding: 0.1rem 0.35rem;
+  font-size: 0.85em;
+}
+
+.btn-llm {
+  background: #0d9488;
+  color: #fff;
+}
+
+/* 登录门禁 */
+.login-gate {
+  min-height: 70vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-gate[hidden] {
+  display: none;
+}
+
+.login-gate form {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 2rem 2.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  width: 320px;
+}
+
+.login-gate h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  text-align: center;
+}
+
+.login-gate .tip {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.login-gate input {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+  color: #e2e8f0;
+  font-size: 0.95rem;
+}
+
+.login-gate button {
+  background: #16a34a;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.6rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.login-gate button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.key-error {
+  margin: 0;
+  color: #f87171;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.save-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.file-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.file-row label {
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+.file-row input[type="file"] {
+  color: #94a3b8;
+  font-size: 0.85rem;
+  max-width: 320px;
+}
+
+.file-row input[type="file"]::file-selector-button {
+  background: #334155;
+  color: #e2e8f0;
+  border: none;
+  border-radius: 6px;
+  padding: 0.45rem 0.9rem;
+  margin-right: 0.6rem;
+  cursor: pointer;
+}
+
+.convert-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.5rem;
+}
+
+/* 中英切换开关（页面右上角） */
+.lang-switch {
+  position: fixed;
+  top: 1rem;
+  right: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  z-index: 100;
+}
+
+.lang-switch .lang-label {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  user-select: none;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.switch .slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: #334155;
+  border-radius: 999px;
+  transition: background 0.2s;
+}
+
+.switch .slider::before {
+  content: "";
+  position: absolute;
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  top: 3px;
+  background: #e2e8f0;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+
+.switch input:checked + .slider {
+  background: #2563eb;
+}
+
+.switch input:checked + .slider::before {
+  transform: translateX(18px);
+}
