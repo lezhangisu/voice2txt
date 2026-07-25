@@ -42,9 +42,9 @@ cp config.example.json config.json
 cp keys.config.example.json keys.config.json
 
 # 2. 启动
-node server.js        # 默认 http://127.0.0.1:8000，PORT/HOST 环境变量可覆盖
+node server.js        # 默认 http://127.0.0.1:5000，PORT/HOST 环境变量可覆盖
 
-# 3. 浏览器打开 http://localhost:8000 ，输入访问密钥进入
+# 3. 浏览器打开 http://localhost:5000 ，输入访问密钥进入
 ```
 
 ### 凭据获取

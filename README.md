@@ -42,9 +42,9 @@ cp config.example.json config.json
 cp keys.config.example.json keys.config.json
 
 # 2. Run
-node server.js        # defaults to http://127.0.0.1:8000 (override with PORT/HOST)
+node server.js        # defaults to http://127.0.0.1:5000 (override with PORT/HOST)
 
-# 3. Open http://localhost:8000 and sign in with an access key
+# 3. Open http://localhost:5000 and sign in with an access key
 ```
 
 ### Where to get credentials
