@@ -126,7 +126,9 @@ function readRawBody(req, maxBytes) {
   });
 }
 
-function serveFile(res, fileName, noStore) {
+// 静态文件统一禁缓存：项目文件都很小，no-store 保证部署后刷新即新版，
+// 避免中间层/浏览器缓存旧版静态资源
+function serveFile(res, fileName) {
   fs.readFile(path.join(ROOT, fileName), (err, data) => {
     if (err) {
       res.writeHead(404);
@@ -135,7 +137,7 @@ function serveFile(res, fileName, noStore) {
     }
     res.writeHead(200, {
       "Content-Type": MIME[path.extname(fileName)] || "application/octet-stream",
-      ...(noStore ? { "Cache-Control": "no-store" } : {}),
+      "Cache-Control": "no-store",
     });
     res.end(data);
   });
@@ -841,22 +843,22 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (pathname === "/" || pathname === "") {
-    if (authed) return serveFile(res, "index.html", true);
+    if (authed) return serveFile(res, "index.html");
     return redirect(res, "/login.html");
   }
 
   if (pathname === "/login.html") {
     if (authed) return redirect(res, "/");
-    return serveFile(res, "login.html", true);
+    return serveFile(res, "login.html");
   }
 
   if (PUBLIC_FILES.has(pathname)) {
-    return serveFile(res, PUBLIC_FILES.get(pathname), false);
+    return serveFile(res, PUBLIC_FILES.get(pathname));
   }
 
   if (AUTHED_FILES.has(pathname)) {
     if (!authed) return sendJson(res, 401, { error: "unauthorized" });
-    return serveFile(res, AUTHED_FILES.get(pathname), true);
+    return serveFile(res, AUTHED_FILES.get(pathname));
   }
 
   // 白名单外一律 404（包括凭据文件、隐藏文件、路径穿越尝试）
