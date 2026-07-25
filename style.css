@@ -333,10 +333,43 @@ code {
   cursor: pointer;
 }
 
-.convert-row {
+/* 面板标题行：两侧等高，保证左右文本框水平对齐 */
+.panel-head {
   display: flex;
-  justify-content: flex-end;
-  margin-bottom: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 2rem;
+  margin-bottom: 0.75rem;
+}
+
+.panel-head h2 {
+  margin: 0;
+}
+
+.panel-head .btn-head-action {
+  padding: 0.3rem 0.8rem;
+  font-size: 0.8rem;
+}
+
+/* 宽屏下状态行与文件行限定在左半栏（与左面板对齐） */
+@media (min-width: 821px) {
+  .status-row,
+  .file-row {
+    width: calc(50% - 0.625rem);
+  }
+
+  .file-row input[type="file"] {
+    max-width: 220px;
+  }
+}
+
+/* 转写状态徽标与上传按钮右对齐到左半栏右缘，形成上下对齐 */
+#transcribe-status {
+  margin-left: auto;
+}
+
+#transcribe-btn {
+  margin-left: auto;
 }
 
 /* 中英切换开关（页面右上角） */

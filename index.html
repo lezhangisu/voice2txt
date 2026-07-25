@@ -45,18 +45,20 @@
     <div class="status-row">
       <span id="mic-status" class="status-badge">麦克风：未请求权限</span>
       <span id="rec-status" class="status-badge">状态：空闲</span>
+      <span id="transcribe-status" class="status-badge" data-i18n="transcribe-status-init">未选择文件</span>
     </div>
 
     <div class="file-row">
       <label for="audio-file" data-i18n="label-file">音频文件转写</label>
       <input type="file" id="audio-file" accept="audio/*,.mp3,.wav,.m4a,.aac,.flac,.ogg" />
       <button id="transcribe-btn" class="btn btn-organize" type="button" data-i18n="btn-transcribe">上传并转写</button>
-      <span id="transcribe-status" class="status-badge" data-i18n="transcribe-status-init">未选择文件</span>
     </div>
 
     <div class="panels">
       <section class="panel">
-        <h2 data-i18n="panel-live">实时识别</h2>
+        <div class="panel-head">
+          <h2 data-i18n="panel-live">实时识别</h2>
+        </div>
         <div class="transcript-panel">
           <div id="transcript" class="transcript" aria-live="polite">
             <p class="placeholder" data-i18n="transcript-placeholder">点击「开始识别」，授权麦克风后说话，文字将实时显示在这里……</p>
@@ -66,9 +68,9 @@
       </section>
 
       <section class="panel">
-        <h2 data-i18n="panel-organized">整理后的文本</h2>
-        <div class="convert-row">
-          <button id="convert-btn" class="btn btn-clear" type="button" disabled>繁简转换</button>
+        <div class="panel-head">
+          <h2 data-i18n="panel-organized">整理后的文本</h2>
+          <button id="convert-btn" class="btn btn-clear btn-head-action" type="button" disabled>繁简转换</button>
         </div>
         <textarea id="organized" class="organized" data-i18n="organized-placeholder" data-i18n-placeholder placeholder="录音结束后，点击下方「整理为连续文本」，可在此编辑后保存。"></textarea>
         <div class="organize-actions">
