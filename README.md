@@ -1,84 +1,86 @@
-# Voice2Txt — 实时语音转文字
+# Voice2Txt — Real-time Speech-to-Text
 
-麦克风实时语音识别、音频文件转写、AI 整理与归纳的一站式网页工具。
-纯前端 + 零依赖 Node 服务，所有第三方凭据只留在服务端，内置访问密钥门禁。
+> 中文版：[README.zh-CN.md](README.zh-CN.md)
 
-## 功能特性
+An all-in-one web app for real-time speech recognition, audio file transcription, and AI-powered text structuring & summarization.
+Pure frontend + a zero-dependency Node server. All third-party credentials stay server-side; a built-in access-key gate protects the app.
 
-- **实时语音识别**（中文普通话，双引擎可选）
-  - 讯飞语音听写（流式版）：真流式 WebSocket，逐字流动出字，带停顿感知会话轮换、看门狗卡死抢救
-  - Groq `whisper-large-v3`：静音切块伪流式，停顿后按句出字
-  - English / 中文繁体：浏览器内置 Web Speech API（免费）
-- **音频文件转写**（双引擎可选）：讯飞录音文件转写（500MB / 5 小时）或 Groq（更快，25MB 以内），支持 mp3 / wav / m4a / aac / flac / ogg
-- **AI 整理与归纳**（双引擎可选）：DeepSeek（`deepseek-v4-flash`）或 Groq 免费模型（`qwen/qwen3.6-27b`），一键整理分段 / 归纳摘要
-- **文本工具**：整理为连续文本、回到上一步（多级撤销）、繁简自动检测与双向转换（OpenCC 字库）
-- **导出**：TXT / Markdown / Word（.doc，自动把 Markdown 标题、多级列表转为 Word 原生样式）
-- **界面**：中英文一键切换（默认中文）、访问密钥登录（HttpOnly Cookie 30 天）
-- **用量保护**：Groq 免费额度单用户 60% 限速（按官方响应头动态校准），讯飞会话异常熔断
+## Features
 
-## 架构
+- **Real-time speech recognition** (Mandarin Chinese, switchable engines)
+  - iFlytek IAT (streaming): true WebSocket streaming, word-by-word output, with pause-aware session rotation and a watchdog that rescues stalled sessions
+  - Groq `whisper-large-v3`: chunked pseudo-streaming (silence-based segmentation), sentence-level output
+  - English / Traditional Chinese: free in-browser Web Speech API
+- **Audio file transcription** (switchable engines): iFlytek LFASR (up to 500 MB / 5 h) or Groq (faster, up to 25 MB); supports mp3 / wav / m4a / aac / flac / ogg
+- **AI structuring & summarization** (switchable engines): DeepSeek (`deepseek-v4-flash`) or Groq-hosted free models (`qwen/qwen3.6-27b`) — one-click paragraph structuring or outline summary
+- **Text tools**: merge into continuous text, multi-level undo ("Step Back"), automatic Traditional/Simplified Chinese detection & conversion (OpenCC data)
+- **Export**: TXT / Markdown / Word (.doc — Markdown headings and nested lists are converted to native Word styles)
+- **UI**: one-click Chinese/English switch (Chinese by default), access-key login (HttpOnly cookie, 30 days)
+- **Usage protection**: per-user 60% rate limit for Groq free tier (calibrated from official response headers), circuit breaker for abnormal iFlytek session churn
+
+## Architecture
 
 ```
-浏览器（纯静态前端）
-  ├─ 麦克风 PCM ──► 讯飞 WebSocket（签名 URL 由 server 签发，音频不经过 server）
-  ├─ 麦克风/文件 ──► server ──► Groq / 讯飞 LFASR / DeepSeek（凭据不出 server）
-  └─ 繁简转换、Markdown 解析、文本导出：全部本地完成
+Browser (pure static frontend)
+  ├─ Microphone PCM ──► iFlytek WebSocket (signed URL issued by server; audio never touches the server)
+  ├─ Microphone / files ──► server ──► Groq / iFlytek LFASR / DeepSeek (credentials never leave the server)
+  └─ Traditional/Simplified conversion, Markdown parsing, text export: all done locally
 
-server.js（零依赖 Node ≥18）
-  ├─ 静态文件白名单（应用文件需登录态，凭据文件一律 404）
-  ├─ 访问密钥门禁（登录限流、HttpOnly Cookie、HTTPS 自动 Secure）
-  └─ 接口鉴权代理：/api/iflytek-sign /api/llm /api/transcribe* 
+server.js (zero-dependency, Node ≥18)
+  ├─ Static-file whitelist (app files require auth; credential files always 404)
+  ├─ Access-key gate (login throttling, HttpOnly cookie, automatic Secure flag behind HTTPS)
+  └─ Authenticated proxies: /api/iflytek-sign  /api/llm  /api/transcribe*
 ```
 
-## 快速开始
+## Quick Start
 
-要求：Node.js ≥ 18（无 npm 依赖），浏览器 Chrome / Edge / Safari 最新版。
+Requirements: Node.js ≥ 18 (no npm dependencies), latest Chrome / Edge / Safari.
 
 ```bash
-# 1. 创建配置（填入你自己的凭据，详见文件内注释）
+# 1. Create configs (fill in your own credentials — see inline comments)
 cp config.example.json config.json
 cp keys.config.example.json keys.config.json
 
-# 2. 启动
-node server.js        # 默认 http://127.0.0.1:8000，PORT/HOST 环境变量可覆盖
+# 2. Run
+node server.js        # defaults to http://127.0.0.1:8000 (override with PORT/HOST)
 
-# 3. 浏览器打开 http://localhost:8000 ，输入访问密钥进入
+# 3. Open http://localhost:8000 and sign in with an access key
 ```
 
-### 凭据获取
+### Where to get credentials
 
-| 凭据 | 用途 | 获取位置 |
+| Credential | Used for | Where |
 | --- | --- | --- |
-| `appId` / `apiKey` / `apiSecret` | 麦克风实时识别（讯飞引擎） | [讯飞开放平台](https://www.xfyun.cn) → 语音听写（流式版） |
-| `lfasrSecret` | 文件转写（讯飞引擎） | 讯飞开放平台 → 录音文件转写 |
-| `groqApiKey` | 文件转写 / AI 整理（Groq 引擎） | [console.groq.com](https://console.groq.com) |
-| `deepseekApiKey` | AI 整理（DeepSeek 引擎） | [platform.deepseek.com](https://platform.deepseek.com) |
+| `appId` / `apiKey` / `apiSecret` | Real-time mic recognition (iFlytek) | [xfyun.cn](https://www.xfyun.cn) → 语音听写（流式版） |
+| `lfasrSecret` | File transcription (iFlytek) | xfyun.cn → 录音文件转写 |
+| `groqApiKey` | File transcription / AI (Groq) | [console.groq.com](https://console.groq.com) |
+| `deepseekApiKey` | AI (DeepSeek) | [platform.deepseek.com](https://platform.deepseek.com) |
 
-所有配置集中在 `config.json`（文件内自带逐行注释），**改完即生效，无需重启**；
-但新增前端文件或修改 `server.js` 后需要重启进程。
+Everything lives in a single `config.json` with inline Chinese comments explaining every field.
+**Config changes take effect immediately without restart**; only adding frontend files or editing `server.js` requires a restart.
 
-## 部署到公网
+## Deploying to Production
 
-1. `server.js` 默认只监听 `127.0.0.1`，不要直接对外暴露该端口；
-2. 用 Caddy / nginx 做 HTTPS 反向代理（麦克风权限要求安全上下文，Cookie 在 HTTPS 下自动附加 `Secure`）；
-3. 防火墙只开放 80/443；
-4. 密钥私下分发，泄露即从 `keys.config.json` 删除（即时生效）。
+1. `server.js` binds to `127.0.0.1` by default — never expose that port directly;
+2. Terminate HTTPS with Caddy / nginx as a reverse proxy (microphone access requires a secure context; the cookie automatically gets the `Secure` flag behind HTTPS);
+3. Open only ports 80/443 in the firewall;
+4. Distribute access keys privately; revoke by deleting the key from `keys.config.json` (effective immediately).
 
-## 文件结构
+## Project Structure
 
 ```
-├── index.html / login.html   # 主页面 / 登录页
-├── style.css                 # 全局样式
-├── app.js                    # 前端主逻辑（识别调度、整理/撤销/导出、LLM 调用）
-├── iflytek-asr.js            # 讯飞听写（流式版）真流式引擎
-├── groq-asr.js               # Groq 伪流式引擎（静音切块）
-├── pcm-worklet.js            # 音频采集 AudioWorklet
-├── zh-convert.js / -data.js  # 繁简转换（数据源自 OpenCC，Apache-2.0）
-├── i18n.js                   # 界面中英文切换
-├── login.js                  # 登录页逻辑
-├── server.js                 # 零依赖 Node 服务（门禁 / 签名 / 代理 / 白名单）
-├── config.example.json       # 统一配置范本（复制为 config.json 使用）
-├── keys.config.example.json  # 访问密钥池范本（复制为 keys.config.json 使用）
+├── index.html / login.html   # App page / login page
+├── style.css                 # Global styles
+├── app.js                    # Frontend core (engine dispatch, organize/undo/export, LLM calls)
+├── iflytek-asr.js            # iFlytek IAT true-streaming engine
+├── groq-asr.js               # Groq chunked pseudo-streaming engine
+├── pcm-worklet.js            # Audio capture AudioWorklet
+├── zh-convert.js / -data.js  # Traditional/Simplified conversion (data from OpenCC, Apache-2.0)
+├── i18n.js                   # UI language switch (Chinese/English)
+├── login.js                  # Login page logic
+├── server.js                 # Zero-dependency Node server (gate / signing / proxy / whitelist)
+├── config.example.json       # Unified config template (copy to config.json)
+├── keys.config.example.json  # Access-key pool template (copy to keys.config.json)
 └── LICENSE                   # MIT
 ```
 
