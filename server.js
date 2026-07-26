@@ -37,7 +37,7 @@ const LLM_MAX_TEXT_CHARS = 200000;
 const LOGIN_MAX_FAILS = 10; // 每 IP 在窗口期内允许的最大登录失败次数
 const LOGIN_WINDOW_MS = 10 * 60 * 1000;
 const REQUEST_MAX = 3; // 每 IP 在窗口期内允许的最大密钥申请次数
-const REQUEST_WINDOW_MS = 60 * 60 * 1000;
+const REQUEST_WINDOW_MS = 30 * 60 * 1000;
 
 // 静态文件白名单：路径名 → 磁盘文件。白名单外一律 404，
 // 不接受任何用户输入的路径，从根上消除文件泄露面。

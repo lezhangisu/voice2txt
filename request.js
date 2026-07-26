@@ -6,7 +6,7 @@
 "use strict";
 
 // 申请页：提交名字 / Email / 留言，服务器校验后通过 Gmail SMTP 通知站长。
-// 接口免登录，服务端按 IP 限流（3 次/小时）。
+// 接口免登录，服务端按 IP 限流（3 次/30 分钟）。
 const form = document.getElementById("request-form");
 const nameInput = document.getElementById("name-input");
 const emailInput = document.getElementById("email-input");

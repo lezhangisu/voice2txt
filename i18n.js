@@ -51,7 +51,7 @@ const I18N_DICT = {
     "request-success": "已提交，审核通过后密钥将发送到你的邮箱",
     "request-back-login": "返回登录",
     "err-request-invalid": "请填写名字和有效的 Email 地址",
-    "err-request-throttle": "提交过于频繁，请 1 小时后再试",
+    "err-request-throttle": "提交过于频繁，请 30 分钟后再试",
     "err-request-fail": "提交失败，请稍后重试",
     "err-request-disabled": "申请通道暂未开放，请联系站长",
   },
@@ -99,7 +99,7 @@ const I18N_DICT = {
       "Request submitted. The key will be emailed to you once approved.",
     "request-back-login": "Back to sign in",
     "err-request-invalid": "Please enter your name and a valid email address",
-    "err-request-throttle": "Too many requests, please try again in an hour",
+    "err-request-throttle": "Too many requests, please try again in 30 minutes",
     "err-request-fail": "Submission failed, please try again later",
     "err-request-disabled":
       "Requests are not open yet, please contact the site owner",
