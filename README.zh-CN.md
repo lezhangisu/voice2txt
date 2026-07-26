@@ -55,6 +55,7 @@ node server.js        # 默认 http://127.0.0.1:5000，PORT/HOST 环境变量可
 | `lfasrSecret` | 文件转写（讯飞引擎） | 讯飞开放平台 → 录音文件转写 |
 | `groqApiKey` | 文件转写 / AI 整理（Groq 引擎） | [console.groq.com](https://console.groq.com) |
 | `deepseekApiKey` | AI 整理（DeepSeek 引擎） | [platform.deepseek.com](https://platform.deepseek.com) |
+| `emailNotifyTo` / `smtpUser` / `smtpPass` | 密钥申请邮件通知 | Gmail → 两步验证 → [应用专用密码](https://myaccount.google.com/apppasswords) |
 
 所有配置集中在 `config.json`（文件内自带逐行注释），**改完即生效，无需重启**；
 但新增前端文件或修改 `server.js` 后需要重启进程。
@@ -70,6 +71,7 @@ node server.js        # 默认 http://127.0.0.1:5000，PORT/HOST 环境变量可
 
 ```
 ├── index.html / login.html   # 主页面 / 登录页
+├── request.html / request.js # 申请访问页
 ├── style.css                 # 全局样式
 ├── app.js                    # 前端主逻辑（识别调度、整理/撤销/导出、LLM 调用）
 ├── iflytek-asr.js            # 讯飞听写（流式版）真流式引擎

@@ -10,7 +10,8 @@
     "【groqApiKey】console.groq.com 创建；文件转写（groq 引擎）与 AI 整理/归纳（groq 引擎）共用",
     "【groqModel】文件转写模型：whisper-large-v3 = 准确率最高；whisper-large-v3-turbo = 更快更便宜",
     "【groqLlmModel】AI 整理/归纳的 Groq 模型（llmEngine 为 groq 时），默认 qwen/qwen3.6-27b",
-    "【deepseekApiKey】platform.deepseek.com 创建（llmEngine 为 deepseek 时）；deepseekModel 默认 deepseek-v4-flash，可改 deepseek-v4-pro"
+    "【deepseekApiKey】platform.deepseek.com 创建（llmEngine 为 deepseek 时）；deepseekModel 默认 deepseek-v4-flash，可改 deepseek-v4-pro",
+    "【邮件通知】登录页「申请访问」的密钥申请通知。emailNotifyTo = 接收申请的 Gmail 地址；smtpUser = 用于发信的 Gmail 地址；smtpPass = 该账号的「应用专用密码」（非登录密码）：开启两步验证后到 myaccount.google.com/apppasswords 生成。三项全部填好才生效"
   ],
   "transcribeEngine": "iflytek",
   "llmEngine": "deepseek",
@@ -24,5 +25,8 @@
   "groqLlmModel": "qwen/qwen3.6-27b",
   "deepseekApiKey": "",
   "deepseekBaseUrl": "https://api.deepseek.com",
-  "deepseekModel": "deepseek-v4-flash"
+  "deepseekModel": "deepseek-v4-flash",
+  "emailNotifyTo": "",
+  "smtpUser": "",
+  "smtpPass": ""
 }

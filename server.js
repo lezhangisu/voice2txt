@@ -11,7 +11,9 @@
 //   2. 静态文件白名单：不在名单内的一律 404，应用文件要求登录态——
 //      杜绝路径穿越、大小写变体、隐藏文件（.git/凭据）泄露；
 //   3. GET /api/iflytek-sign：讯飞听写 WebSocket 签名（需登录）；
-//   4. POST /api/llm：代理调用 DeepSeek / Groq LLM（需登录，API Key 不出服务器）。
+//   4. POST /api/llm：代理调用 DeepSeek / Groq LLM（需登录，API Key 不出服务器）；
+//   5. POST /api/request-access：免登录访问密钥申请（每 IP 限流），
+//      通过 Gmail SMTP 邮件通知站长（config.json 的 smtpUser/smtpPass/emailNotifyTo）。
 //
 // 部署：默认只监听 127.0.0.1，对外暴露交给 HTTPS 反向代理（Caddy/nginx）。
 // 启动：node server.js   （PORT / HOST 环境变量可覆盖）
@@ -21,6 +23,7 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const tls = require("tls");
 
 const PORT = Number(process.env.PORT) || 5000;
 const HOST = process.env.HOST || "127.0.0.1";
@@ -33,12 +36,16 @@ const COOKIE_MAX_AGE = 30 * 24 * 3600; // 30 天（需求：至少 7 天）
 const LLM_MAX_TEXT_CHARS = 200000;
 const LOGIN_MAX_FAILS = 10; // 每 IP 在窗口期内允许的最大登录失败次数
 const LOGIN_WINDOW_MS = 10 * 60 * 1000;
+const REQUEST_MAX = 3; // 每 IP 在窗口期内允许的最大密钥申请次数
+const REQUEST_WINDOW_MS = 60 * 60 * 1000;
 
 // 静态文件白名单：路径名 → 磁盘文件。白名单外一律 404，
 // 不接受任何用户输入的路径，从根上消除文件泄露面。
 const PUBLIC_FILES = new Map([
   ["/login.html", "login.html"],
   ["/login.js", "login.js"],
+  ["/request.html", "request.html"],
+  ["/request.js", "request.js"],
   ["/i18n.js", "i18n.js"],
   ["/style.css", "style.css"],
 ]);
@@ -193,6 +200,24 @@ function recordLoginFail(ip) {
   const arr = loginFails.get(ip) || [];
   arr.push(Date.now());
   loginFails.set(ip, arr);
+}
+
+// 密钥申请限流：免登录接口，按每 IP 每窗口 REQUEST_MAX 次硬封顶（无论成败）
+const requestHits = new Map(); // ip → 申请时间戳数组
+
+function requestThrottled(ip) {
+  const now = Date.now();
+  const arr = (requestHits.get(ip) || []).filter(
+    (t) => now - t < REQUEST_WINDOW_MS
+  );
+  requestHits.set(ip, arr);
+  return arr.length >= REQUEST_MAX;
+}
+
+function recordRequest(ip) {
+  const arr = requestHits.get(ip) || [];
+  arr.push(Date.now());
+  requestHits.set(ip, arr);
 }
 
 // ---------- 讯飞签名 ----------
@@ -759,6 +784,101 @@ async function handleLlm(req, res) {
   sendJson(res, 200, { content: (content || "").trim() });
 }
 
+// ---------- 邮件通知（Gmail SMTP，零依赖最小客户端） ----------
+
+// 进邮件 header 的字段先剥离 CR/LF，防止 header 注入
+function headerSafe(s) {
+  return String(s).replace(/[\r\n]+/g, " ").trim();
+}
+
+// RFC 2047：含非 ASCII 的 header 值（如主题、发件人名）用 Base64 编码
+function encodeHeader(s) {
+  return /[^\x20-\x7e]/.test(s)
+    ? `=?UTF-8?B?${Buffer.from(s, "utf-8").toString("base64")}?=`
+    : s;
+}
+
+// 通过 Gmail SMTP（465 端口隐式 TLS + AUTH LOGIN）发送纯文本邮件。
+// cfg 需含 smtpUser（Gmail 地址）、smtpPass（应用专用密码）、emailNotifyTo。
+function sendMail(cfg, { subject, text, replyTo }) {
+  return new Promise((resolve, reject) => {
+    const b64 = (s) => Buffer.from(String(s), "utf-8").toString("base64");
+    const user = headerSafe(cfg.smtpUser);
+    const to = headerSafe(cfg.emailNotifyTo);
+    const headers = [
+      `From: ${encodeHeader("Voice2Txt")} <${user}>`,
+      `To: <${to}>`,
+      `Subject: ${encodeHeader(headerSafe(subject))}`,
+      `Date: ${new Date().toUTCString()}`,
+      "MIME-Version: 1.0",
+      "Content-Type: text/plain; charset=utf-8",
+      "Content-Transfer-Encoding: base64",
+    ];
+    if (replyTo) headers.push(`Reply-To: <${headerSafe(replyTo)}>`);
+    // 正文整体 base64（避免 UTF-8 传输问题）；base64 字符集不含 "."，
+    // 无需 dot-stuffing，以 "\r\n." 结束 DATA
+    const data =
+      headers.join("\r\n") +
+      "\r\n\r\n" +
+      b64(text).replace(/(.{76})/g, "$1\r\n") +
+      "\r\n.";
+
+    // SMTP 会话步骤：期望码不匹配即失败
+    const steps = [
+      { expect: 220 }, // 服务器问候
+      { send: "EHLO voice2txt.local", expect: 250 },
+      { send: "AUTH LOGIN", expect: 334 },
+      { send: b64(user), expect: 334 },
+      { send: b64(cfg.smtpPass), expect: 235 },
+      { send: `MAIL FROM:<${user}>`, expect: 250 },
+      { send: `RCPT TO:<${to}>`, expect: [250, 251] },
+      { send: "DATA", expect: 354 },
+      { send: data, expect: 250 },
+      { send: "QUIT", expect: 221 },
+    ];
+
+    const socket = tls.connect(465, "smtp.gmail.com", {
+      servername: "smtp.gmail.com",
+    });
+    socket.setTimeout(15000);
+
+    let step = 0;
+    let buf = "";
+    let settled = false;
+    const fail = (msg) => {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      reject(new Error(msg));
+    };
+
+    socket.on("timeout", () => fail("SMTP 连接超时"));
+    socket.on("error", (err) => fail(`SMTP 连接失败：${err.message}`));
+    socket.on("data", (chunk) => {
+      if (settled) return;
+      buf += chunk.toString("utf-8");
+      // SMTP 回复可能多行（"250-..." 续行），以 "数字+空格" 行结束
+      const m = buf.match(/^(?:\d{3}-[^\r\n]*\r\n)*(\d{3}) ([^\r\n]*)\r\n/);
+      if (!m) return;
+      const code = Number(m[1]);
+      buf = buf.slice(m[0].length);
+      const expects = Array.isArray(steps[step].expect)
+        ? steps[step].expect
+        : [steps[step].expect];
+      if (!expects.includes(code)) {
+        return fail(`SMTP 返回 ${code}：${m[2].slice(0, 120)}`);
+      }
+      step += 1;
+      if (step >= steps.length) {
+        settled = true;
+        socket.end();
+        return resolve();
+      }
+      socket.write(steps[step].send + "\r\n");
+    });
+  });
+}
+
 // ---------- 路由 ----------
 
 const server = http.createServer(async (req, res) => {
@@ -789,6 +909,60 @@ const server = http.createServer(async (req, res) => {
       }
       recordLoginFail(ip);
       return sendJson(res, 401, { ok: false });
+    }
+
+    // 免登录密钥申请：每 IP 限流，校验后通过 Gmail SMTP 通知站长
+    if (pathname === "/api/request-access" && req.method === "POST") {
+      const ip = clientIp(req);
+      if (requestThrottled(ip)) {
+        return sendJson(res, 429, { error: "too_many_requests" });
+      }
+      let body;
+      try {
+        body = JSON.parse(await readBody(req));
+      } catch (_) {
+        return sendJson(res, 400, { error: "bad_request" });
+      }
+      const name = (body && body.name != null ? String(body.name) : "").trim();
+      const email = (
+        body && body.email != null ? String(body.email) : ""
+      ).trim();
+      const message = (
+        body && body.message != null ? String(body.message) : ""
+      ).trim();
+      if (
+        !name ||
+        name.length > 50 ||
+        email.length > 100 ||
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+        message.length > 1000
+      ) {
+        return sendJson(res, 400, { error: "invalid_fields" });
+      }
+      const cfg = loadConfig();
+      if (!cfg || !cfg.smtpUser || !cfg.smtpPass || !cfg.emailNotifyTo) {
+        return sendJson(res, 501, {
+          error:
+            "邮件通知未配置（config.json 的 smtpUser / smtpPass / emailNotifyTo）",
+        });
+      }
+      recordRequest(ip);
+      try {
+        await sendMail(cfg, {
+          subject: `🔑【Voice2Txt 访问密钥申请】${name}`,
+          replyTo: email,
+          text:
+            `名字：${name}\n` +
+            `Email：${email}\n\n` +
+            `留言：\n${message || "（无）"}\n\n` +
+            `———\n` +
+            `提交时间：${new Date().toISOString()}\n` +
+            `来源 IP：${ip}`,
+        });
+        return sendJson(res, 200, { ok: true });
+      } catch (err) {
+        return sendJson(res, 502, { error: `邮件发送失败：${err.message}` });
+      }
     }
 
     if (pathname === "/api/session" && req.method === "GET") {
@@ -896,4 +1070,9 @@ server.listen(PORT, HOST, () => {
   );
   const rtEngine = (cfg.realtimeEngine || "iflytek").toLowerCase();
   console.log(`实时识别引擎：${rtEngine}`);
+  console.log(
+    cfg.smtpUser && cfg.smtpPass && cfg.emailNotifyTo
+      ? "邮件通知：已配置"
+      : "邮件通知：未配置（config.json 的 smtpUser / smtpPass / emailNotifyTo）"
+  );
 });

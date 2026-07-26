@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<!--
+  Voice2Txt — 申请访问页（访问密钥申请）
+  Copyright (c) 2026 Le Zhang
+  Licensed under the MIT License.
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Voice2Txt — 申请访问</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="lang-switch">
+    <span class="lang-label">中</span>
+    <label class="switch">
+      <input type="checkbox" class="lang-toggle-input" id="lang-toggle" />
+      <span class="slider"></span>
+    </label>
+    <span class="lang-label">EN</span>
+  </div>
+
+  <div class="login-gate">
+    <form id="request-form">
+      <h1>Voice2Txt</h1>
+      <p class="tip" data-i18n="request-tip">填写以下信息，申请访问密钥</p>
+      <input id="name-input" type="text" autocomplete="name" maxlength="50" data-i18n="request-name" data-i18n-placeholder placeholder="名字" />
+      <input id="email-input" type="email" autocomplete="email" maxlength="100" data-i18n="request-email" data-i18n-placeholder placeholder="Email 地址" />
+      <textarea id="message-input" rows="4" maxlength="1000" data-i18n="request-message" data-i18n-placeholder placeholder="留言（可选）"></textarea>
+      <button id="request-btn" type="submit" data-i18n="btn-request-submit">提交申请</button>
+      <p id="request-result" class="key-error" hidden></p>
+      <a class="gate-link" href="login.html" data-i18n="request-back-login">返回登录</a>
+    </form>
+  </div>
+
+  <script src="i18n.js"></script>
+  <script src="request.js"></script>
+</body>
+</html>

@@ -55,6 +55,7 @@ node server.js        # defaults to http://127.0.0.1:5000 (override with PORT/HO
 | `lfasrSecret` | File transcription (iFlytek) | xfyun.cn → 录音文件转写 |
 | `groqApiKey` | File transcription / AI (Groq) | [console.groq.com](https://console.groq.com) |
 | `deepseekApiKey` | AI (DeepSeek) | [platform.deepseek.com](https://platform.deepseek.com) |
+| `emailNotifyTo` / `smtpUser` / `smtpPass` | Access-request email notification | Gmail → 2-Step Verification → [App Password](https://myaccount.google.com/apppasswords) |
 
 Everything lives in a single `config.json` with inline Chinese comments explaining every field.
 **Config changes take effect immediately without restart**; only adding frontend files or editing `server.js` requires a restart.
@@ -70,6 +71,7 @@ Everything lives in a single `config.json` with inline Chinese comments explaini
 
 ```
 ├── index.html / login.html   # App page / login page
+├── request.html / request.js # Access-request page
 ├── style.css                 # Global styles
 ├── app.js                    # Frontend core (engine dispatch, organize/undo/export, LLM calls)
 ├── iflytek-asr.js            # iFlytek IAT true-streaming engine

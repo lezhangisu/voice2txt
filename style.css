@@ -266,13 +266,20 @@ code {
   text-align: center;
 }
 
-.login-gate input {
+.login-gate input,
+.login-gate textarea {
   background: #0f172a;
   border: 1px solid #334155;
   border-radius: 6px;
   padding: 0.6rem 0.75rem;
   color: #e2e8f0;
   font-size: 0.95rem;
+  font-family: inherit;
+}
+
+.login-gate textarea {
+  resize: vertical;
+  min-height: 4.5rem;
 }
 
 .login-gate button {
@@ -295,6 +302,21 @@ code {
   color: #f87171;
   font-size: 0.85rem;
   text-align: center;
+}
+
+.key-error.ok {
+  color: #4ade80;
+}
+
+.gate-link {
+  color: #60a5fa;
+  font-size: 0.85rem;
+  text-align: center;
+  text-decoration: none;
+}
+
+.gate-link:hover {
+  text-decoration: underline;
 }
 
 .save-actions {
