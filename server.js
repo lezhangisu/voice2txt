@@ -24,6 +24,8 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const tls = require("tls");
+const os = require("os");
+const { execFile } = require("child_process");
 
 const PORT = Number(process.env.PORT) || 5000;
 const HOST = process.env.HOST || "127.0.0.1";
@@ -114,21 +116,28 @@ function readBody(req) {
   });
 }
 
-// 读取二进制请求体（音频文件上传用），返回 Buffer
+// 读取二进制请求体（音频文件上传用），返回 Buffer。
+// 超限时不销毁 socket（否则 413 响应发不出去），仅停止缓冲、丢弃后续数据，
+// 由调用方正常返回 413，客户端收到响应后自会中止上传。
 function readRawBody(req, maxBytes) {
   return new Promise((resolve, reject) => {
     const chunks = [];
     let size = 0;
+    let over = false;
     req.on("data", (chunk) => {
       size += chunk.length;
       if (size > maxBytes) {
-        reject(new Error("body too large"));
-        req.destroy();
+        if (!over) {
+          over = true;
+          reject(new Error("body too large"));
+        }
         return;
       }
       chunks.push(chunk);
     });
-    req.on("end", () => resolve(Buffer.concat(chunks)));
+    req.on("end", () => {
+      if (!over) resolve(Buffer.concat(chunks));
+    });
     req.on("error", reject);
   });
 }
@@ -309,6 +318,69 @@ function extractSentences(orderResultObj) {
 
 const GROQ_URL = "https://api.groq.com/openai/v1/audio/transcriptions";
 const GROQ_MAX_BYTES = 25 * 1024 * 1024; // Groq 单文件上限 25MB
+const UPLOAD_MAX_BYTES = 128 * 1024 * 1024; // 上传宽限（页面标注 100MB），超出直接拒绝
+const FFMPEG_TIMEOUT_MS = 5 * 60 * 1000;
+
+// 启动时探测 ffmpeg：>25MB 的文件需先在服务端转码压缩再走 Groq
+let ffmpegReady = false;
+execFile("ffmpeg", ["-version"], (err) => {
+  ffmpegReady = !err;
+  console.log(
+    ffmpegReady
+      ? "大文件转码：ffmpeg 已就绪（>25MB 自动压缩）"
+      : "大文件转码：未安装 ffmpeg（>25MB 文件将无法处理）"
+  );
+});
+
+// 大文件压缩：解码 → 16kHz 单声道 AAC。码率按时长自适应（默认 32kbps，
+// 预算 23MB 留余量；时长未知时用 32k），产物必须 < GROQ_MAX_BYTES
+async function compressForGroq(body, fileName, durationSec) {
+  let bitrateK = 32;
+  if (durationSec > 0) {
+    const fitK = Math.floor((23 * 1024 * 1024 * 8) / durationSec / 1000);
+    bitrateK = Math.max(8, Math.min(32, fitK));
+  }
+  const tag = `v2t-${process.pid}-${Date.now()}-${crypto
+    .randomBytes(4)
+    .toString("hex")}`;
+  const tmpIn = path.join(os.tmpdir(), tag);
+  const tmpOut = `${tag}.m4a`;
+  await fs.promises.writeFile(tmpIn, body);
+  try {
+    await new Promise((resolve, reject) => {
+      execFile(
+        "ffmpeg",
+        [
+          "-hide_banner", "-loglevel", "error", "-y",
+          "-i", tmpIn, "-vn", "-ac", "1", "-ar", "16000",
+          "-b:a", `${bitrateK}k`, tmpOut,
+        ],
+        { timeout: FFMPEG_TIMEOUT_MS },
+        (err, _stdout, stderr) =>
+          err
+            ? reject(
+                new Error(
+                  `ffmpeg 转码失败：${(stderr || err.message).slice(0, 200)}`
+                )
+              )
+            : resolve()
+      );
+    });
+    const out = await fs.promises.readFile(tmpOut);
+    if (!out.length) throw new Error("ffmpeg 转码产物为空");
+    if (out.length > GROQ_MAX_BYTES) {
+      throw new Error("音频时长过长，压缩后仍超过 Groq 25MB 上限，请切分后分批上传");
+    }
+    console.log(
+      `[voice2txt] 大文件转码：${(body.length / 1048576).toFixed(1)}MB → ` +
+        `${(out.length / 1048576).toFixed(1)}MB（${bitrateK}kbps）`
+    );
+    return { data: out, name: fileName.replace(/\.[^.]+$/, "") + ".m4a" };
+  } finally {
+    fs.promises.unlink(tmpIn).catch(() => {});
+    fs.promises.unlink(tmpOut).catch(() => {});
+  }
+}
 
 async function handleGroqTranscribe(req, res, url, cfg) {
   if (!cfg || !cfg.groqApiKey) {
@@ -318,22 +390,40 @@ async function handleGroqTranscribe(req, res, url, cfg) {
   }
   let body;
   try {
-    body = await readRawBody(req, GROQ_MAX_BYTES + 4096); // 留余量以给出明确提示
+    body = await readRawBody(req, UPLOAD_MAX_BYTES + 4096); // 留余量以给出明确提示
   } catch (_) {
-    return sendJson(res, 413, { error: "文件过大" });
+    return sendJson(res, 413, { error: "文件大小超限（最大 100MB）" });
   }
   if (!body.length) return sendJson(res, 400, { error: "空文件" });
-  if (body.length > GROQ_MAX_BYTES) {
-    return sendJson(res, 413, {
-      error: "文件超过 Groq 25MB 上限，请压缩音频或改用讯飞引擎",
-    });
+  if (body.length > UPLOAD_MAX_BYTES) {
+    return sendJson(res, 413, { error: "文件大小超限（最大 100MB）" });
   }
 
   const fileName = (url.searchParams.get("fileName") || "audio").slice(0, 200);
   const language = url.searchParams.get("language") === "en" ? "en" : "zh";
+  const durationSec = parseInt(url.searchParams.get("duration"), 10) || 0;
+
+  // 超过 Groq 25MB 上限：先服务端转码压缩
+  let uploadBody = body;
+  let uploadName = fileName;
+  if (body.length > GROQ_MAX_BYTES) {
+    if (!ffmpegReady) {
+      return sendJson(res, 501, {
+        error: "文件超过 25MB 需服务端转码压缩，但服务器未安装 ffmpeg",
+      });
+    }
+    try {
+      const r = await compressForGroq(body, fileName, durationSec);
+      uploadBody = r.data;
+      uploadName = r.name;
+    } catch (err) {
+      const over = /25MB/.test(err.message);
+      return sendJson(res, over ? 413 : 502, { error: err.message });
+    }
+  }
 
   const form = new FormData();
-  form.append("file", new Blob([body]), fileName);
+  form.append("file", new Blob([uploadBody]), uploadName);
   form.append("model", cfg.groqModel || "whisper-large-v3");
   form.append("response_format", "verbose_json");
   form.append("language", language);
@@ -408,7 +498,7 @@ async function handleTranscribeChunk(req, res, url) {
   if (usage.requests >= reqCap) {
     return sendJson(res, 429, {
       error: "rate_limited",
-      message: `已达 Groq 语音识别限速的 ${GROQ_ASR_USAGE_RATIO * 100}%（${reqCap} 次/分钟），稍后自动继续`,
+      message: "语音识别已达额度上限，稍后自动继续",
     });
   }
   usage.requests += 1;
@@ -630,9 +720,7 @@ async function handleGroqLlm(req, res, cfg, systemPrompt, text) {
   if (usage.requests >= reqCap || usage.tokens >= tokCap) {
     return sendJson(res, 429, {
       error: "rate_limited",
-      message:
-        `你本分钟的使用量已达到 Groq 免费额度的 ${GROQ_USAGE_RATIO * 100}%` +
-        `（上限：${reqCap} 次调用 或 ${tokCap} tokens / 分钟），请休息一会儿再继续`,
+      message: "AI 使用已达额度上限，请休息一分钟再继续",
     });
   }
   usage.requests += 1;
@@ -699,13 +787,31 @@ async function handleGroqLlm(req, res, cfg, systemPrompt, text) {
     ? used
     : Math.ceil((systemPrompt.length + text.length) / 4);
 
-  const content =
-    data.choices && data.choices[0] && data.choices[0].message.content;
+  const choice = data.choices && data.choices[0];
+  const content = choice && choice.message.content;
+  if (choice && choice.finish_reason === "length") {
+    return sendJson(res, 413, {
+      error: "文本过长，AI 输出已达上限被截断，请分段处理后再合并",
+    });
+  }
   // 兜底剥离 <think> 思考块（部分模型即使关闭推理也可能输出）
   const cleaned = (content || "")
     .replace(/<think>[\s\S]*?<\/think>/g, "")
     .trim();
-  return sendJson(res, 200, { content: cleaned });
+  return sendJson(res, 200, { content: cleaned, engine: "groq" });
+}
+
+// 长文本自动切换阈值：超过则 LLM 从 Groq 改走 DeepSeek
+// （Groq 免费额度的 tokens/分钟有限，长文本输入+输出必然撞墙）
+const LLM_GROQ_MAX_WORDS = 5000; // 英文词数
+const LLM_GROQ_MAX_CJK = 6000; // 汉字数
+
+function isLongText(text) {
+  const cjkRe = /[\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]/g;
+  const cjk = (text.match(cjkRe) || []).length;
+  if (cjk > LLM_GROQ_MAX_CJK) return true;
+  const words = text.replace(cjkRe, " ").split(/\s+/).filter(Boolean).length;
+  return words > LLM_GROQ_MAX_WORDS;
 }
 
 async function handleLlm(req, res) {
@@ -727,7 +833,14 @@ async function handleLlm(req, res) {
   }
 
   const cfg = loadConfig();
-  const engine = ((cfg && cfg.llmEngine) || "deepseek").toLowerCase();
+  let engine = ((cfg && cfg.llmEngine) || "deepseek").toLowerCase();
+  let switched = false;
+  // 长文本自动切换：Groq 免费额度的 tokens/分钟放不下长文本，改走 DeepSeek
+  if (engine === "groq" && isLongText(text) && cfg && cfg.deepseekApiKey) {
+    engine = "deepseek";
+    switched = true;
+    console.log(`[voice2txt] LLM 长文本自动切换 DeepSeek（${text.length} 字符）`);
+  }
   if (engine === "groq") {
     return await handleGroqLlm(req, res, cfg, systemPrompt, text);
   }
@@ -753,6 +866,9 @@ async function handleLlm(req, res) {
         },
         body: JSON.stringify({
           model: cfg.deepseekModel || "deepseek-v4-flash",
+          // 显式拉满输出上限（默认 4096 会截断长文整理结果；v4-flash 实测支持 16384），
+          // 超出由下方 finish_reason === "length" 检测兜底提示
+          max_tokens: 16384,
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: text },
@@ -779,9 +895,18 @@ async function handleLlm(req, res) {
     });
   }
   const data = await resp.json();
-  const content =
-    data.choices && data.choices[0] && data.choices[0].message.content;
-  sendJson(res, 200, { content: (content || "").trim() });
+  const choice = data.choices && data.choices[0];
+  if (choice && choice.finish_reason === "length") {
+    return sendJson(res, 413, {
+      error: "文本过长，AI 输出已达上限被截断，请分段处理后再合并",
+    });
+  }
+  const content = choice && choice.message.content;
+  sendJson(res, 200, {
+    content: (content || "").trim(),
+    engine: "deepseek",
+    switched,
+  });
 }
 
 // ---------- 邮件通知（Gmail SMTP，零依赖最小客户端） ----------

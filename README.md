@@ -11,8 +11,8 @@ Pure frontend + a zero-dependency Node server. All third-party credentials stay 
   - iFlytek IAT (streaming): true WebSocket streaming, word-by-word output, with pause-aware session rotation and a watchdog that rescues stalled sessions
   - Groq `whisper-large-v3`: chunked pseudo-streaming (silence-based segmentation), sentence-level output
   - English / Traditional Chinese: free in-browser Web Speech API
-- **Audio file transcription** (switchable engines): iFlytek LFASR (up to 500 MB / 5 h) or Groq (faster, up to 25 MB); supports mp3 / wav / m4a / aac / flac / ogg
-- **AI structuring & summarization** (switchable engines): DeepSeek (`deepseek-v4-flash`) or Groq-hosted free models (`qwen/qwen3.6-27b`) — one-click paragraph structuring or outline summary
+- **Audio file transcription** (switchable engines): uploads up to 100 MB (128 MB hard cap); iFlytek LFASR uploads directly, files >25 MB on the Groq engine are auto-compressed server-side via ffmpeg (16 kHz mono AAC); supports mp3 / wav / m4a / aac / flac / ogg
+- **AI structuring & summarization** (switchable engines): DeepSeek (`deepseek-v4-flash`) or Groq-hosted free models (`qwen/qwen3.6-27b`) — one-click paragraph structuring or outline summary; on the Groq engine, long texts (5000+ English words / 6000+ CJK chars) automatically fall over to DeepSeek
 - **Text tools**: merge into continuous text, multi-level undo ("Step Back"), automatic Traditional/Simplified Chinese detection & conversion (OpenCC data)
 - **Export**: TXT / Markdown / Word (.doc — Markdown headings and nested lists are converted to native Word styles)
 - **UI**: one-click Chinese/English switch (Chinese by default), access-key login (HttpOnly cookie, 30 days)
@@ -65,7 +65,9 @@ Everything lives in a single `config.json` with inline Chinese comments explaini
 1. `server.js` binds to `127.0.0.1` by default — never expose that port directly;
 2. Terminate HTTPS with Caddy / nginx as a reverse proxy (microphone access requires a secure context; the cookie automatically gets the `Secure` flag behind HTTPS);
 3. Open only ports 80/443 in the firewall;
-4. Distribute access keys privately; revoke by deleting the key from `keys.config.json` (effective immediately).
+4. Distribute access keys privately; revoke by deleting the key from `keys.config.json` (effective immediately);
+5. Install ffmpeg on the server (`sudo apt install ffmpeg`) — files >25 MB are transcoded before Groq;
+6. Raise the proxy upload limit, e.g. nginx `client_max_body_size 130m;` (the 1 MB default rejects uploads with 413). Note Cloudflare's free plan caps uploads at 100 MB regardless.
 
 ## Project Structure
 

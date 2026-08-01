@@ -355,6 +355,11 @@ code {
   cursor: pointer;
 }
 
+.file-hint {
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
 /* 面板标题行：两侧等高，保证左右文本框水平对齐 */
 .panel-head {
   display: flex;

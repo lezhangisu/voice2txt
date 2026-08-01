@@ -742,9 +742,7 @@ async function callLLM(kind, text) {
   }
   if (resp.status === 429) {
     const d = await resp.json().catch(() => ({}));
-    const err = new Error(d.message || "使用过于频繁，请休息一会儿再继续");
-    err.rateLimited = true;
-    throw err;
+    throw new Error(d.message || "使用过于频繁，请休息一会儿再继续");
   }
   if (!resp.ok) {
     const body = await resp.text().catch(() => "");
@@ -752,7 +750,11 @@ async function callLLM(kind, text) {
   }
   const data = await resp.json();
   if (!data.content) throw new Error("服务返回内容为空");
-  return data.content.trim();
+  return {
+    content: data.content.trim(),
+    engine: data.engine || "",
+    switched: !!data.switched,
+  };
 }
 
 async function runLLM(kind) {
@@ -780,14 +782,17 @@ async function runLLM(kind) {
   try {
     const result = await callLLM(kind, text);
     pushOrganizeHistory();
-    els.organized.value = result;
+    els.organized.value = result.content;
     refreshConvertBtn();
-    setRecStatus(`${label}完成`, "active");
-    dbg(`LLM ${kind} 完成：返回 ${result.length} 字符`);
+    const note = result.switched ? "（长文本已自动切换 DeepSeek）" : "";
+    setRecStatus(`${label}完成${note}`, "active");
+    dbg(
+      `LLM ${kind} 完成：返回 ${result.content.length} 字符` +
+        `（引擎 ${result.engine || "未知"}${result.switched ? "，自动切换" : ""}）`
+    );
   } catch (err) {
     setRecStatus(`${label}失败：${err.message}`, "error");
     dbg(`LLM ${kind} 失败：${err.message}`);
-    if (err.rateLimited) alert(err.message); // 限速弹窗提示用户休息
     if (err.authExpired) location.href = "./login.html";
   } finally {
     llmBusy = false;
@@ -823,6 +828,44 @@ function getAudioDuration(file) {
   });
 }
 
+// 带上传进度的 POST（fetch 不支持上传进度，退回 XHR）；
+// onProgress(loaded, total) 上传中回调，onUploadDone() 上传完成（等待响应）回调
+function uploadWithProgress(url, file, onProgress, onUploadDone) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", url);
+    xhr.setRequestHeader("Content-Type", "application/octet-stream");
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress(e.loaded, e.total);
+    };
+    xhr.upload.onload = () => onUploadDone();
+    xhr.onload = () => {
+      let data = {};
+      try {
+        data = JSON.parse(xhr.responseText || "{}");
+      } catch (_) {
+        /* 非 JSON 响应 */
+      }
+      resolve({
+        status: xhr.status,
+        ok: xhr.status >= 200 && xhr.status < 300,
+        data,
+      });
+    };
+    xhr.onerror = () => reject(new Error("网络错误"));
+    xhr.ontimeout = () => reject(new Error("上传超时"));
+    xhr.timeout = 15 * 60 * 1000;
+    xhr.send(file);
+  });
+}
+
+// 预估等待时间的人类可读格式
+function fmtEta(sec) {
+  if (!Number.isFinite(sec) || sec < 0) return "";
+  if (sec < 90) return `${Math.ceil(sec)} 秒`;
+  return `约 ${Math.ceil(sec / 60)} 分钟`;
+}
+
 async function transcribeAudioFile() {
   if (transcribeBusy) return;
   const file = els.audioFile.files && els.audioFile.files[0];
@@ -830,35 +873,74 @@ async function transcribeAudioFile() {
     setTranscribeStatus("请先选择音频文件", "error");
     return;
   }
-  if (file.size > 500 * 1024 * 1024) {
-    setTranscribeStatus("文件超过 500MB 上限", "error");
+  if (file.size > 128 * 1024 * 1024) {
+    setTranscribeStatus("文件大小超限（最大 100MB）", "error");
     return;
   }
 
   transcribeBusy = true;
   els.transcribeBtn.disabled = true;
+  let etaTimer = null;
   try {
     setTranscribeStatus("读取文件信息…");
     const duration = await getAudioDuration(file);
     const language = els.langSelect.value.startsWith("zh") ? "cn" : "en";
-
-    setTranscribeStatus("上传中…", "active");
     dbg(
       `文件转写：${file.name}（${(file.size / 1024 / 1024).toFixed(1)}MB，${duration}s，${language}）`
     );
-    const uploadResp = await fetch(
+
+    // 动态预估等待：上传阶段按实测速度算剩余；处理阶段按时长粗估
+    // （>25MB 服务端需先转码 ≈ duration/60，识别 ≈ duration/50，下限 8s），每 2s 刷新
+    const needCompress = file.size > 25 * 1024 * 1024;
+    const processEst = Math.max(8, (needCompress ? duration / 60 : 0) + duration / 50);
+    const processLabel = needCompress ? "转码并转写中" : "转写中";
+    let phase = "upload";
+    let phaseStart = Date.now();
+    let lastLoaded = 0;
+
+    etaTimer = setInterval(() => {
+      const elapsed = (Date.now() - phaseStart) / 1000;
+      if (phase === "upload") {
+        const pct = lastLoaded ? Math.round((lastLoaded / file.size) * 100) : 0;
+        const speed = elapsed > 0 ? lastLoaded / elapsed : 0;
+        const eta = speed > 0 ? (file.size - lastLoaded) / speed : Infinity;
+        setTranscribeStatus(
+          pct > 0 && Number.isFinite(eta)
+            ? `上传中… ${pct}%（约还需 ${fmtEta(eta)}）`
+            : "上传中…",
+          "active"
+        );
+      } else {
+        const remain = processEst - elapsed;
+        setTranscribeStatus(
+          remain > 0
+            ? `${processLabel}…（约还需 ${fmtEta(remain)}）`
+            : `${processLabel}…（即将完成）`,
+          "active"
+        );
+      }
+    }, 2000);
+
+    setTranscribeStatus("上传中…", "active");
+    const uploadResp = await uploadWithProgress(
       `./api/transcribe?fileName=${encodeURIComponent(file.name)}&duration=${duration}&language=${language}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/octet-stream" },
-        body: file,
+      file,
+      (loaded) => {
+        lastLoaded = loaded;
+      },
+      () => {
+        phase = "process";
+        phaseStart = Date.now();
       }
     );
     if (uploadResp.status === 401) {
       location.href = "./login.html";
       return;
     }
-    const uploadData = await uploadResp.json().catch(() => ({}));
+    // 响应已到达；同步引擎（Groq）等待时间已计入，异步引擎（讯飞）走下方轮询文案
+    clearInterval(etaTimer);
+    etaTimer = null;
+    const uploadData = uploadResp.data;
     if (!uploadResp.ok) {
       throw new Error(uploadData.error || `上传失败（HTTP ${uploadResp.status}）`);
     }
@@ -867,8 +949,8 @@ async function transcribeAudioFile() {
     if (uploadData.done) {
       const sentences = uploadData.sentences || [];
       if (!sentences.length) throw new Error("转写结果为空");
-      pushOrganizeHistory();
-      els.organized.value = sentences.join("\n");
+      // 与实时听写一致：先载入左侧识别文本框，再由用户整理到右侧
+      sentences.forEach((s) => appendFinal(s));
       refreshConvertBtn();
       setTranscribeStatus(`转写完成（${sentences.length} 句）`, "active");
       dbg(`文件转写完成（同步引擎）：${sentences.length} 句`);
@@ -895,8 +977,8 @@ async function transcribeAudioFile() {
       if (data.state === "done") {
         const sentences = data.sentences || [];
         if (!sentences.length) throw new Error("转写结果为空");
-        pushOrganizeHistory();
-        els.organized.value = sentences.join("\n");
+        // 与实时听写一致：先载入左侧识别文本框，再由用户整理到右侧
+        sentences.forEach((s) => appendFinal(s));
         refreshConvertBtn();
         setTranscribeStatus(`转写完成（${sentences.length} 句）`, "active");
         dbg(`文件转写完成：${sentences.length} 句`);
@@ -913,6 +995,7 @@ async function transcribeAudioFile() {
     setTranscribeStatus(err.message, "error");
     dbg(`文件转写失败：${err.message}`);
   } finally {
+    if (etaTimer) clearInterval(etaTimer);
     transcribeBusy = false;
     els.transcribeBtn.disabled = false;
   }

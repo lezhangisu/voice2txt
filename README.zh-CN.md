@@ -11,8 +11,8 @@
   - 讯飞语音听写（流式版）：真流式 WebSocket，逐字流动出字，带停顿感知会话轮换、看门狗卡死抢救
   - Groq `whisper-large-v3`：静音切块伪流式，停顿后按句出字
   - English / 中文繁体：浏览器内置 Web Speech API（免费）
-- **音频文件转写**（双引擎可选）：讯飞录音文件转写（500MB / 5 小时）或 Groq（更快，25MB 以内），支持 mp3 / wav / m4a / aac / flac / ogg
-- **AI 整理与归纳**（双引擎可选）：DeepSeek（`deepseek-v4-flash`）或 Groq 免费模型（`qwen/qwen3.6-27b`），一键整理分段 / 归纳摘要
+- **音频文件转写**（双引擎可选）：上传上限 100MB（服务端宽限 128MB）；讯飞录音文件转写直传，Groq 引擎下 >25MB 由服务器 ffmpeg 自动压缩转码（16kHz 单声道 AAC），支持 mp3 / wav / m4a / aac / flac / ogg
+- **AI 整理与归纳**（双引擎可选）：DeepSeek（`deepseek-v4-flash`）或 Groq 免费模型（`qwen/qwen3.6-27b`），一键整理分段 / 归纳摘要；Groq 模式下超长文本（5000 英文词 / 6000 汉字）自动切换 DeepSeek
 - **文本工具**：整理为连续文本、回到上一步（多级撤销）、繁简自动检测与双向转换（OpenCC 字库）
 - **导出**：TXT / Markdown / Word（.doc，自动把 Markdown 标题、多级列表转为 Word 原生样式）
 - **界面**：中英文一键切换（默认中文）、访问密钥登录（HttpOnly Cookie 30 天）
@@ -65,7 +65,9 @@ node server.js        # 默认 http://127.0.0.1:5000，PORT/HOST 环境变量可
 1. `server.js` 默认只监听 `127.0.0.1`，不要直接对外暴露该端口；
 2. 用 Caddy / nginx 做 HTTPS 反向代理（麦克风权限要求安全上下文，Cookie 在 HTTPS 下自动附加 `Secure`）；
 3. 防火墙只开放 80/443；
-4. 密钥私下分发，泄露即从 `keys.config.json` 删除（即时生效）。
+4. 密钥私下分发，泄露即从 `keys.config.json` 删除（即时生效）；
+5. 服务器安装 ffmpeg（`sudo apt install ffmpeg`）——>25MB 的文件先转码压缩再走 Groq；
+6. 反向代理调大上传限制，如 nginx `client_max_body_size 130m;`（默认 1MB 会直接 413）。注意 Cloudflare 免费版上传上限 100MB，无法再放宽。
 
 ## 文件结构
 
